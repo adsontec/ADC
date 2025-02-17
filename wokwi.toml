@@ -1,0 +1,4 @@
+[wokwi]
+version = 1
+firmware = 'build/ADC_TAREFA.uf2'
+elf = 'build/ADC_TAREFA.elf'
