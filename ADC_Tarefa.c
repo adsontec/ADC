@@ -17,14 +17,27 @@
 #define I2C_SDA 14
 #define I2C_SCL 15
 #define endereco 0x3C
-#define PWM_GPIO 22
-#define PWM_WRAP 20000
+#define PWM_WRAP 25000
 
 ssd1306_t ssd;
 bool cor = true;
 
 // Conexão dos pinos GPIO
-const uint8_t GPIOs[] = {LED1_PIN, LED2_PIN, LED3_PIN, SW_PIN, BUTTON_A};
+const uint8_t GPIOs[] = {LED3_PIN, SW_PIN, BUTTON_A};
+
+void setup_pwm() {
+    gpio_set_function(LED1_PIN, GPIO_FUNC_PWM);
+    uint slice_num1 = pwm_gpio_to_slice_num(LED1_PIN);
+    pwm_set_wrap(slice_num1, PWM_WRAP);
+    pwm_set_clkdiv(slice_num1, 125.0f);
+    pwm_set_enabled(slice_num1, true);
+
+    gpio_set_function(LED2_PIN, GPIO_FUNC_PWM);
+    uint slice_num2 = pwm_gpio_to_slice_num(LED2_PIN);
+    pwm_set_wrap(slice_num2, PWM_WRAP);
+    pwm_set_clkdiv(slice_num2, 125.0f);
+    pwm_set_enabled(slice_num2, true);
+}
 
 void init_gpio(){
     gpio_set_function(I2C_SDA, GPIO_FUNC_I2C); // Set the GPIO pin function to I2C
@@ -48,7 +61,7 @@ void inicializar_GPIOs(){
     adc_gpio_init(VRX_PIN); // Configura GP26 (ADC0) para o eixo X do joystick.
     adc_gpio_init(VRY_PIN); // Configura GP27 (ADC1) para o eixo Y do joystick.
 
-    for(int i = 0; i < 5; i++){
+    for(int i = 0; i < 3; i++){
         gpio_init(GPIOs[i]);
         if( i < 3){
             gpio_set_dir(GPIOs[i], GPIO_OUT);
@@ -83,6 +96,7 @@ int main() {
     i2c_init(I2C_PORT, 400 * 1000);
     init_gpio();
     init_display();
+    setup_pwm();
 
     // Configuração da interrupção com callback
     gpio_set_irq_enabled_with_callback(SW_PIN, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
@@ -109,28 +123,8 @@ int main() {
         ssd1306_rect(&ssd, valx, valy, 8, 8, cor, cor);     // Desenha quandrado
         ssd1306_send_data(&ssd);                            // Atualiza o display 
         
-        // Controle do LED1 baseado no valor do ADC0 (VRX)
-        if (vrx_value > 2100) {
-            gpio_put(LED1_PIN, 1); // Liga o LED1.
-        } else {
-            gpio_put(LED1_PIN, 0); // Desliga o LED1.
-        }
-
-        // Controle do LED2 baseado no valor do ADC1 (VRY)
-        if (vry_value > 2100) {
-            gpio_put(LED2_PIN, 1); // Liga o LED2.
-        } else {
-            gpio_put(LED2_PIN, 0); // Desliga o LED2.
-        }
-
-        if (gpio_get(BUTTON_A) == 1) {  // Verifica se o botão foi pressionado (nível baixo)
-            gpio_put(LED3_PIN, 1);  // Acende o LED
-        } else {
-            gpio_put(LED1_PIN, 0);  // Apaga o LED
-            gpio_put(LED2_PIN, 0);  // Apaga o LED
-            gpio_put(LED3_PIN, 0);  // Apaga o LED
-            sleep_ms(2000);
-        }
+        pwm_set_gpio_level(LED1_PIN, (vrx_value/2)*10);
+        pwm_set_gpio_level(LED2_PIN, (vry_value/2)*10);
 
         // Imprime os valores lidos na comunicação serial.
         printf("VRX: %u, VRY: %u\n", vrx_value, vry_value);
